@@ -1,5 +1,5 @@
 const assert = require('node:assert')
-const { test, after, beforeEach, describe } = require('node:test')
+const { test, after, beforeEach } = require('node:test')
 const mongoose = require('mongoose')
 const supertest = require('supertest')
 const app = require('../app')
@@ -35,7 +35,6 @@ test('blog posts have id property instead of _id', async () => {
   })
 })
 
-
 test('a valid blog can be added', async () => {
   const newBlog = {
     title: 'Canonical string reduction',
@@ -57,10 +56,48 @@ test('a valid blog can be added', async () => {
   assert(titles.includes('Canonical string reduction'))
 })
 
+test('if likes is missing it defaults to 0', async () => {
+  const newBlog = {
+    title: 'Blog without likes',
+    author: 'Test Author',
+    url: 'http://example.com/no-likes',
+  }
 
+  const response = await api
+    .post('/api/blogs')
+    .send(newBlog)
+    .expect(201)
+    .expect('Content-Type', /application\/json/)
 
+  assert.strictEqual(response.body.likes, 0)
+})
+
+test('blog without title is not added', async () => {
+  const newBlog = {
+    author: 'Test Author',
+    url: 'http://example.com/no-title',
+    likes: 3,
+  }
+
+  await api.post('/api/blogs').send(newBlog).expect(400)
+
+  const blogsAtEnd = await helper.blogsInDb()
+  assert.strictEqual(blogsAtEnd.length, helper.initialBlogs.length)
+})
+
+test('blog without url is not added', async () => {
+  const newBlog = {
+    title: 'No url here',
+    author: 'Test Author',
+    likes: 3,
+  }
+
+  await api.post('/api/blogs').send(newBlog).expect(400)
+
+  const blogsAtEnd = await helper.blogsInDb()
+  assert.strictEqual(blogsAtEnd.length, helper.initialBlogs.length)
+})
 
 after(async () => {
   await mongoose.connection.close()
 })
-
