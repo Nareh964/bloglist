@@ -98,6 +98,52 @@ test('blog without url is not added', async () => {
   assert.strictEqual(blogsAtEnd.length, helper.initialBlogs.length)
 })
 
+test('a blog can be deleted', async () => {
+  const blogsAtStart = await helper.blogsInDb()
+  const blogToDelete = blogsAtStart[0]
+
+  await api.delete(`/api/blogs/${blogToDelete.id}`).expect(204)
+
+  const blogsAtEnd = await helper.blogsInDb()
+
+  const ids = blogsAtEnd.map(b => b.id)
+  assert(!ids.includes(blogToDelete.id))
+
+  assert.strictEqual(blogsAtEnd.length, helper.initialBlogs.length - 1)
+})
+
+test('deleting with a malformatted id returns 400', async () => {
+  await api.delete('/api/blogs/12345').expect(400)
+})
+
+test('a blog likes can be updated', async () => {
+  const blogsAtStart = await helper.blogsInDb()
+  const blogToUpdate = blogsAtStart[0]
+
+  const updatedData = { ...blogToUpdate, likes: blogToUpdate.likes + 1 }
+
+  const response = await api
+    .put(`/api/blogs/${blogToUpdate.id}`)
+    .send(updatedData)
+    .expect(200)
+    .expect('Content-Type', /application\/json/)
+
+  assert.strictEqual(response.body.likes, blogToUpdate.likes + 1)
+
+  const blogsAtEnd = await helper.blogsInDb()
+  const updatedInDb = blogsAtEnd.find(b => b.id === blogToUpdate.id)
+  assert.strictEqual(updatedInDb.likes, blogToUpdate.likes + 1)
+})
+
+test('updating a non-existing blog returns 404', async () => {
+  const id = await helper.nonExistingId()
+
+  await api
+    .put(`/api/blogs/${id}`)
+    .send({ title: 'x', url: 'http://x.com', likes: 1 })
+    .expect(404)
+})
+
 after(async () => {
   await mongoose.connection.close()
 })
